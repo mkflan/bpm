@@ -1,18 +1,46 @@
 #![allow(unused)]
 
-mod cli;
-pub mod crypto;
-mod db;
+// pub mod crypto;
+// mod db;
 
-use clap::Parser;
-use cli::{Cli, Command, handle_create, handle_open};
+use std::{
+    fs::{File, OpenOptions},
+    io::{self, Write},
+    path::PathBuf,
+};
 
 fn main() {
-    let args = Cli::parse();
+    let args = std::env::args().collect::<Vec<_>>();
+    let db_path = &args[1];
 
-    match args.command {
-        Command::Create(args) => handle_create(args),
-        Command::Open(args) => handle_open(args),
-        _ => todo!(),
+    let db_file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(db_path)
+        .expect("unable to open database file");
+
+    println!("basic password manager");
+
+    loop {
+        print!("> ");
+        io::stdout().flush();
+
+        let mut command = String::new();
+        io::stdin()
+            .read_line(&mut command)
+            .expect("unable to read input");
+
+        // match command.split_once(" ") {
+        //     Some((cmd, args)) => match cmd {
+        //         "help" => todo!(),
+        //         "insert" => todo!(),
+        //         "delete" => todo!(),
+        //         "edit" => todo!(),
+        //         "extract" => todo!(),
+        //         _ => panic!("invalid command: {command}"),
+        //     },
+        //     None => panic!("unrecognized input: {command}"),
+        // }
     }
 }
