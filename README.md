@@ -10,7 +10,7 @@ A basic password manager (bpm).
     - [ ] Editing
     - [ ] Extracting
 - Stage 2
-  - [ ] Implement password authentication, backed by encryption
-  - [ ] Develop a database file format
+  - [ ] Implement password authentication, backed by encryption (with basic text file format)
+  - [ ] Develop a more robust database file format
 - Stage 3
   - [ ] Implement a TUI option for interacting with databases

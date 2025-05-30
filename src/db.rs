@@ -1,60 +1,100 @@
-use crate::crypto;
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+    io::{Read, Write},
+};
 
-/// Signature used to signify the start of a .bpmdb file ("startbpmdb")
-pub const START_FILE_SIGNATURE: [u8; 10] =
-    [0x73, 0x74, 0x61, 0x72, 0x74, 0x62, 0x70, 0x6d, 0x64, 0x62];
+/// Create a database object from the database file.
+pub fn create_db_obj(db_file: &mut File) -> Database {
+    let mut db = Database::new();
 
-/// Signature used to signify the start of a .bpmdb header ("starth")
-pub const START_HEADER_SIGNATURE: [u8; 6] = [0x73, 0x74, 0x61, 0x72, 0x74, 0x68];
+    let mut entries = String::new();
+    db_file
+        .read_to_string(&mut entries)
+        .expect("unable to read from file");
 
-/// Signature used to signify the end of a .bpmdb header ("endh")
-pub const END_HEADER_SIGNATURE: [u8; 4] = [0x65, 0x6e, 0x64, 0x68];
+    // Entries in the database text file are each one line long. The different parts of an entry
+    // are separated by a single space: the left is the entry name, the right is the password.
+    for entry in entries.lines() {
+        let Some((name, password)) = entry.split_once(" ") else {
+            panic!("unable to parse entry")
+        };
 
-/// Signature used to signify the end of a .bpmdb file ("endbpmdb")
-pub const END_FILE_SIGNATURE: [u8; 8] = [0x65, 0x6e, 0x64, 0x62, 0x70, 0x6d, 0x64, 0x62];
+        db.insert_entry(name.into(), password.into());
+    }
 
-pub static OPEN_DB: LazyLock<Option<Database>> = LazyLock::new(|| Option::default());
-
-/// A .bpmdb file.
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Database {
-    // Path to the database on the user's file system.
-    path: PathBuf,
-
-    master_password: String,
-    // The unique salt used for the master password in the key derivation function.
-    // master_salt: &'a [u8],
-
-    // The nonce generated for encryption.
-    // nonce: &'a [u8],
-
-    // The password store itself.
-    passwords: HashMap<String, String>,
-
-    /// Database status information
-    is_open: bool,
+    db
 }
 
-// impl Database {
-//     pub fn new(path: PathBuf, master_password: String) -> Self {
-//         Self {
-//             path,
-//             master_password,
-//             passwords: HashMap::new(),
-//         }
-//     }
-// }
+#[derive(Debug, Default)]
+pub struct Database {
+    /// The database entries.
+    entries: HashMap<String, String>,
+}
 
-// impl<'a> Database<'a> {
-//     pub fn new(password: &'a str) -> Database<'a> {
-//         let (key, salt, nonce) = crypto::generate_crypto_inputs(password);
+impl Database {
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-//         Self {
-//             master_salt: salt.as_str().as_bytes(),
-//             nonce: nonce.as_slice(),
-//             passwords: HashMap::new(),
-//         }
-//     }
-// }
+    /// Insert a new entry into the database.
+    pub fn insert_entry(&mut self, name: String, password: String) {
+        self.entries.insert(name, password);
+    }
+
+    /// Delete an existing entry from the database.
+    pub fn delete_entry(&mut self, name: String) {
+        self.entries.remove(&name);
+    }
+
+    /// Edit an existing entry in the database.
+    pub fn edit_entry(&mut self, name: String, new_password: String) {
+        self.entries.entry(name).and_modify(|e| *e = new_password);
+    }
+
+    /// Extract the password of an existing entry.
+    pub fn extract_entry_password(&mut self, name: String) -> &String {
+        self.entries.get(&name).expect("unable to retrieve entry")
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum DatabaseJob {
+    Insert,
+    Delete,
+    Edit,
+    Extract,
+}
+
+pub fn execute_job<'a>(
+    job: DatabaseJob,
+    db: &mut Database,
+    db_file: &mut File,
+    mut args: impl Iterator<Item = &'a str>,
+) -> Result<(), ()> {
+    use DatabaseJob::*;
+
+    match job {
+        Insert => {
+            let Some(entry_name) = args.next() else {
+                println!("Please provide a name for this entry!");
+                return Err(());
+            };
+
+            let Some(password) = args.next() else {
+                println!("Please provide a password to accompany this entry!");
+                return Err(());
+            };
+
+            db.insert_entry(entry_name.into(), password.into());
+            db_file.write(format!("{entry_name} {password}\n").as_bytes());
+
+            println!("Successfully created entry for '{entry_name}'!");
+        }
+        Delete => todo!(),
+        Edit => todo!(),
+        Extract => todo!(),
+    }
+
+    Ok(())
+}
