@@ -3,9 +3,9 @@ A basic password manager (bpm).
 # Roadmap
 
 - Stage 1
-  - [ ] Implement using basic text file
+  - [x] Implement using basic text file
   - Give user a prompt to manipulate entries in the password database
-    - [ ] Insertion
+    - [x] Insertion
     - [ ] Deletion
     - [ ] Editing
     - [ ] Extracting
